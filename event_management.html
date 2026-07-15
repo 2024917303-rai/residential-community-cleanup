@@ -1,0 +1,1107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Event Management – Clean-Up System</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+    /* ── Colour tokens from logo ── */
+    :root {
+      --green-dark:   #1a5c2a;
+      --green-mid:    #2e8b3f;
+      --green-light:  #4caf50;
+      --yellow:       #f5c800;
+      --navy:         #0d2340;
+      --white:        #ffffff;
+      --bg:           #f0f4f1;
+      --sidebar-bg:   #0d2340;
+      --text-main:    #1a2e1c;
+      --text-muted:   #5a7260;
+      --border:       #d0ddd2;
+      --row-hover:    #e8f5e9;
+      --red:          #c0392b;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text-main);
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* ══════════════ SIDEBAR ══════════════ */
+    .sidebar {
+      width: 240px;
+      flex-shrink: 0;
+      background: var(--sidebar-bg);
+      display: flex;
+      flex-direction: column;
+      padding: 28px 0 24px;
+      position: fixed;
+      top: 0; left: 0; bottom: 0;
+      z-index: 100;
+    }
+
+    .sidebar-logo {
+      display: flex;
+      justify-content: center;
+      padding: 0 20px 28px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .sidebar-logo img {
+      width: 120px;
+      height: 120px;
+      object-fit: contain;
+    }
+
+    .sidebar-logo .logo-placeholder {
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.1);
+      border: 2px dashed rgba(255,255,255,0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: rgba(255,255,255,0.4);
+      font-size: 12px;
+    }
+
+    .sidebar-nav {
+      flex: 1;
+      padding: 20px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 11px 16px;
+      border-radius: 10px;
+      color: rgba(255,255,255,0.6);
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      text-decoration: none;
+      transition: background 0.15s, color 0.15s;
+      border: none;
+      background: none;
+      width: 100%;
+      text-align: left;
+    }
+
+    .nav-item svg { width: 18px; height: 18px; flex-shrink: 0; }
+
+    .nav-item:hover {
+      background: rgba(255,255,255,0.08);
+      color: #fff;
+    }
+
+    .nav-item.active {
+      background: var(--green-mid);
+      color: #fff;
+    }
+
+    .nav-item.active svg { color: var(--yellow); }
+
+    .sidebar-bottom {
+      padding: 0 16px;
+      border-top: 1px solid rgba(255,255,255,0.08);
+      padding-top: 16px;
+      margin: 0 0 0;
+    }
+
+    .btn-logout {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      padding: 11px 16px;
+      border-radius: 10px;
+      background: rgba(192,57,43,0.2);
+      color: #ff8a80;
+      border: none;
+      font-size: 14px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .btn-logout:hover { background: rgba(192,57,43,0.4); }
+    .btn-logout svg { width: 18px; height: 18px; }
+
+    /* ══════════════ MAIN CONTENT ══════════════ */
+    .main {
+      margin-left: 240px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    /* Top bar */
+    .topbar {
+      background: var(--white);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+
+    .topbar-left h1 {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .topbar-left p {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .admin-badge {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 6px 14px 6px 8px;
+    }
+
+    .admin-avatar {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: var(--green-mid);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .admin-badge span {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    /* Content area */
+    .content {
+      padding: 28px 32px;
+      flex: 1;
+    }
+
+    /* Table section */
+    .table-section {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+    }
+
+    .table-header {
+      padding: 20px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(135deg, var(--green-dark) 0%, var(--green-mid) 100%);
+    }
+
+    .table-header h2 {
+      font-size: 16px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .table-header p {
+      font-size: 12px;
+      color: rgba(255,255,255,0.65);
+      margin-top: 2px;
+    }
+
+    .table-actions {
+      display: flex;
+      gap: 10px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 9px 18px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      border: none;
+      transition: all 0.15s;
+    }
+
+    .btn svg { width: 15px; height: 15px; }
+
+    .btn-add {
+      background: var(--yellow);
+      color: var(--navy);
+    }
+
+    .btn-add:hover { background: #e6b800; }
+
+    .btn-delete {
+      background: rgba(255,255,255,0.15);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.3);
+    }
+
+    .btn-delete:hover { background: rgba(192,57,43,0.7); border-color: transparent; }
+
+    /* Search bar */
+    .table-toolbar {
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 1px solid var(--border);
+      background: #fafcfa;
+    }
+
+    .search-wrap {
+      position: relative;
+      flex: 1;
+      max-width: 260px;
+    }
+
+    .search-wrap svg {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 15px;
+      height: 15px;
+      color: #aaa;
+      pointer-events: none;
+    }
+
+    .search-wrap input {
+      width: 100%;
+      padding: 8px 12px 8px 36px;
+      border: 1.5px solid rgba(255,255,255,0.35);
+      border-radius: 8px;
+      font-size: 13px;
+      font-family: inherit;
+      outline: none;
+      background: rgba(255,255,255,0.15);
+      color: #fff;
+      transition: border-color 0.2s, background 0.2s;
+    }
+
+    .search-wrap input::placeholder { color: rgba(255,255,255,0.6); }
+    .search-wrap input:focus { border-color: var(--yellow); background: rgba(255,255,255,0.25); }
+
+    .filter-select {
+      padding: 8px 12px;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      font-size: 13px;
+      font-family: inherit;
+      outline: none;
+      background: #fff;
+      color: var(--text-main);
+      cursor: pointer;
+    }
+
+    /* Table */
+    .table-wrap { overflow-x: auto; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    thead th {
+      padding: 13px 20px;
+      text-align: left;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      background: #f5f8f5;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+
+    thead th:first-child { padding-left: 24px; }
+    thead th:last-child  { padding-right: 24px; text-align: center; }
+
+    tbody tr {
+      border-bottom: 1px solid #eef2ee;
+      transition: background 0.12s;
+    }
+
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: var(--row-hover); }
+
+    tbody td {
+      padding: 14px 20px;
+      font-size: 13.5px;
+      color: var(--text-main);
+      vertical-align: middle;
+    }
+
+    tbody td:first-child { padding-left: 24px; }
+    tbody td:last-child  { padding-right: 24px; text-align: center; }
+
+    .event-title-cell { font-weight: 600; }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 11.5px;
+      font-weight: 600;
+    }
+
+    .status-badge::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+    }
+
+    .badge-upcoming { background: #e3f2fd; color: #1565c0; }
+    .badge-upcoming::before { background: #1976d2; }
+    .badge-ongoing  { background: #e8f5e9; color: #2e7d32; }
+    .badge-ongoing::before  { background: #43a047; }
+    .badge-done     { background: #f3f3f3; color: #666; }
+    .badge-done::before     { background: #aaa; }
+
+    .action-btns {
+      display: flex;
+      gap: 6px;
+      justify-content: center;
+    }
+
+    .icon-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 7px;
+      border: 1px solid var(--border);
+      background: #fff;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+    }
+
+    .icon-btn svg { width: 14px; height: 14px; }
+    .icon-btn.edit:hover  { background: #e8f5e9; border-color: var(--green-light); color: var(--green-mid); }
+    .icon-btn.del:hover   { background: #fde8e8; border-color: #e88; color: var(--red); }
+    .icon-btn.view:hover  { background: #e3f2fd; border-color: #90caf9; color: #1976d2; }
+
+    /* Empty state */
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-muted);
+    }
+
+    .empty-state svg { width: 48px; height: 48px; opacity: 0.3; margin-bottom: 12px; }
+    .empty-state p { font-size: 14px; }
+
+    /* Pagination */
+    .table-footer {
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-top: 1px solid var(--border);
+      background: #fafcfa;
+    }
+
+    .table-footer p { font-size: 13px; color: var(--text-muted); }
+
+    .pagination {
+      display: flex;
+      gap: 4px;
+    }
+
+    .page-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 7px;
+      border: 1px solid var(--border);
+      background: #fff;
+      font-size: 13px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+      font-family: inherit;
+      color: var(--text-main);
+    }
+
+    .page-btn:hover { background: var(--row-hover); border-color: var(--green-light); }
+    .page-btn.active { background: var(--green-mid); color: #fff; border-color: var(--green-mid); }
+
+    /* ══════════════ MODAL ══════════════ */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-overlay.open { display: flex; }
+
+    .modal {
+      background: #fff;
+      border-radius: 16px;
+      width: min(520px, 95vw);
+      box-shadow: 0 24px 60px rgba(0,0,0,0.25);
+      overflow: hidden;
+      animation: modalIn 0.2s ease;
+    }
+
+    @keyframes modalIn {
+      from { transform: translateY(20px); opacity: 0; }
+      to   { transform: translateY(0);    opacity: 1; }
+    }
+
+    .modal-head {
+      padding: 20px 24px;
+      background: linear-gradient(135deg, var(--green-dark), var(--green-mid));
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .modal-head h3 { font-size: 16px; font-weight: 700; color: #fff; }
+
+    .modal-close {
+      background: rgba(255,255,255,0.15);
+      border: none;
+      color: #fff;
+      width: 30px;
+      height: 30px;
+      border-radius: 7px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      line-height: 1;
+      transition: background 0.15s;
+    }
+
+    .modal-close:hover { background: rgba(255,255,255,0.3); }
+
+    .modal-body {
+      padding: 24px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .modal-body .full { grid-column: 1 / -1; }
+
+    .form-field label {
+      display: block;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+
+    .form-field input,
+    .form-field textarea,
+    .form-field select {
+      width: 100%;
+      padding: 10px 13px;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      font-size: 13.5px;
+      font-family: inherit;
+      outline: none;
+      background: #fafafa;
+      color: var(--text-main);
+      transition: border-color 0.2s;
+    }
+
+    .form-field input:focus,
+    .form-field textarea:focus,
+    .form-field select:focus { border-color: var(--green-light); background: #fff; }
+
+    .form-field textarea { resize: vertical; min-height: 80px; }
+
+    .modal-foot {
+      padding: 16px 24px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    .btn-cancel {
+      background: #f0f0f0;
+      color: #555;
+      padding: 9px 18px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      border: none;
+    }
+
+    .btn-save {
+      background: var(--green-mid);
+      color: #fff;
+      padding: 9px 22px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      border: none;
+      transition: background 0.15s;
+    }
+
+    .btn-save:hover { background: var(--green-dark); }
+    .btn-save:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 28px;
+      right: 28px;
+      background: var(--navy);
+      color: #fff;
+      padding: 13px 20px;
+      border-radius: 10px;
+      font-size: 13.5px;
+      font-weight: 500;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      z-index: 300;
+      transform: translateY(80px);
+      opacity: 0;
+      transition: all 0.3s ease;
+    }
+
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .toast svg { width: 18px; height: 18px; color: var(--yellow); }
+
+    /* Delete confirm */
+    .modal-del .modal-body {
+      grid-template-columns: 1fr;
+      text-align: center;
+      padding: 32px 24px 20px;
+    }
+
+    .del-icon {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background: #fde8e8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 16px;
+    }
+
+    .del-icon svg { width: 28px; height: 28px; color: var(--red); }
+    .modal-del h4 { font-size: 17px; font-weight: 700; margin-bottom: 8px; }
+    .modal-del p  { font-size: 13px; color: var(--text-muted); }
+
+    .btn-del-confirm {
+      background: var(--red);
+      color: #fff;
+      padding: 9px 22px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      border: none;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══ SIDEBAR ══ -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <img src="asset/logo.png"
+         alt="Clean-Up Logo"
+         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
+    <div class="logo-placeholder" style="display:none">Logo</div>
+  </div>
+
+  <nav class="sidebar-nav">
+    <a class="nav-item active" href="event_management.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+      </svg>
+      Event List
+    </a>
+    <a class="nav-item" href="total_participants.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+      </svg>
+      Participants
+    </a>
+    <a class="nav-item" href="tools.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+      </svg>
+      Tools
+    </a>
+    <a class="nav-item" href="notification.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+      </svg>
+      Notification Center
+    </a>
+    <a class="nav-item" href="settings.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+      </svg>
+      Settings
+    </a>
+  </nav>
+
+  <div class="sidebar-bottom">
+    <button class="btn-logout" id="btnLogout">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+      </svg>
+      Log Out
+    </button>
+  </div>
+</aside>
+
+<!-- ══ MAIN ══ -->
+<div class="main">
+
+  <!-- Top bar -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <h1>Event Management</h1>
+      <p>Residential Community Clean-Up Announcement System</p>
+    </div>
+    <div class="topbar-right">
+      <div class="admin-badge">
+        <div class="admin-avatar">A</div>
+        <span>Admin</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Content -->
+  <div class="content">
+
+    <!-- Table -->
+    <div class="table-section">
+      <div class="table-header">
+        <div>
+          <h2>Event List</h2>
+          <p>All registered clean-up events</p>
+        </div>
+        <div class="table-actions">
+          <div class="search-wrap" style="margin-right:4px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="searchInput" placeholder="Search events…" style="background:#fff;color:#222;border-color:rgba(255,255,255,0.4);">
+          </div>
+          <select id="filterStatus" style="display:none"></select>
+          <button class="btn btn-delete" id="btnDeleteSelected">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+            Delete Event
+          </button>
+          <button class="btn btn-add" id="btnAddEvent">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add Event
+          </button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th><input type="checkbox" id="checkAll"></th>
+              <th>Event Title</th>
+              <th>Date</th>
+              <th>Time</th>
+              <th>Venue</th>
+              <th>Description</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="eventTableBody"></tbody>
+        </table>
+        <div class="empty-state" id="emptyState" style="display:none">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          <p>No events found. Add your first event!</p>
+        </div>
+      </div>
+
+      <div class="table-footer">
+        <p id="tableInfo">Loading events…</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ ADD/EDIT MODAL ══ -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="modalTitle">Add New Event</h3>
+      <button class="modal-close" id="modalClose">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="editId">
+      <div class="form-field full">
+        <label>Event Title *</label>
+        <input type="text" id="fTitle" placeholder="e.g. Taman Maju Clean-Up Drive">
+      </div>
+      <div class="form-field">
+        <label>Date *</label>
+        <input type="date" id="fDate">
+      </div>
+      <div class="form-field">
+        <label>Time *</label>
+        <input type="time" id="fTime">
+      </div>
+      <div class="form-field full">
+        <label>Venue *</label>
+        <input type="text" id="fVenue" placeholder="e.g. Taman Maju Community Hall">
+      </div>
+      <div class="form-field full">
+        <label>Description</label>
+        <textarea id="fDesc" placeholder="Brief description of the event…"></textarea>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-cancel" id="modalCancel">Cancel</button>
+      <button class="btn-save" id="modalSave">Save Event</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ DELETE CONFIRM MODAL ══ -->
+<div class="modal-overlay" id="delOverlay">
+  <div class="modal modal-del">
+    <div class="modal-head">
+      <h3>Confirm Delete</h3>
+      <button class="modal-close" id="delClose">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="del-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+      </div>
+      <h4 id="delEventName">Delete this event?</h4>
+      <p>This action cannot be undone. The event and all related data will be permanently removed.</p>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-cancel" id="delCancel">Cancel</button>
+      <button class="btn-del-confirm" id="delConfirm">Yes, Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TOAST ══ -->
+<div class="toast" id="toast">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+  <span id="toastMsg">Done!</span>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  const SUPABASE_URL = "https://dlhqubrluorfszaqqugh.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRsaHF1YnJsdW9yZnN6YXFxdWdoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2Nzg1ODksImV4cCI6MjA5NzI1NDU4OX0.zMLZyMwh7sZOJQIHWOC217yitvFDdd2_Fqegpm-l2Nw";
+  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+</script>
+<script>
+  // ── Data now lives in Supabase table "events" ──
+  let events = [];
+  let deleteTarget = null;
+  let editTarget = null;
+  let currentPage = 1;
+  const perPage = 8;
+
+  // ── Auth guard: kick back to login if no admin logged in ──
+  async function checkSession() {
+    const { data: { session } } = await supabase.auth.getSession();
+    const admin = sessionStorage.getItem('admin');
+    if (!session || !admin) {
+      window.location.href = 'login.html';
+    }
+  }
+
+  // ── Fetch events from Supabase ──
+  async function loadEvents() {
+    const { data, error } = await supabase
+      .from('events')
+      .select('*')
+      .order('event_date', { ascending: true });
+
+    if (error) {
+      showToast('Failed to load events: ' + error.message);
+      return;
+    }
+    events = data || [];
+    render();
+  }
+
+  // ── Render ──
+  function getFiltered() {
+    const q = document.getElementById('searchInput').value.toLowerCase();
+    return events.filter(e =>
+      e.title.toLowerCase().includes(q) || e.venue.toLowerCase().includes(q)
+    );
+  }
+
+  function fmtDate(d) {
+    if (!d) return '–';
+    const [y,m,day] = d.split('-');
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return `${parseInt(day)} ${months[parseInt(m)-1]} ${y}`;
+  }
+
+  function fmtTime(t) {
+    if (!t) return '–';
+    const [h,m] = t.split(':');
+    const hr = parseInt(h);
+    return `${hr%12||12}:${m} ${hr>=12?'PM':'AM'}`;
+  }
+
+  function render() {
+    const filtered = getFiltered();
+    const total = filtered.length;
+    const pages = Math.max(1, Math.ceil(total / perPage));
+    if (currentPage > pages) currentPage = pages;
+    const slice = filtered.slice((currentPage-1)*perPage, currentPage*perPage);
+
+    const tbody = document.getElementById('eventTableBody');
+    const empty = document.getElementById('emptyState');
+
+    if (slice.length === 0) {
+      tbody.innerHTML = '';
+      empty.style.display = 'block';
+    } else {
+      empty.style.display = 'none';
+      tbody.innerHTML = slice.map(e => `
+        <tr>
+          <td><input type="checkbox" class="row-check" data-id="${e.event_id}"></td>
+          <td class="event-title-cell">${e.title}</td>
+          <td>${fmtDate(e.event_date)}</td>
+          <td>${fmtTime(e.event_time)}</td>
+          <td>${e.venue}</td>
+          <td style="max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${e.description||''}">${e.description||'–'}</td>
+          <td>
+            <div class="action-btns">
+              <button class="icon-btn view" title="View" onclick="viewEvent(${e.event_id})">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+              <button class="icon-btn edit" title="Edit" onclick="openEdit(${e.event_id})">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              </button>
+              <button class="icon-btn del" title="Delete" onclick="openDelete(${e.event_id})">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+              </button>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    document.getElementById('tableInfo').textContent = `Showing ${slice.length} of ${total} events`;
+  }
+
+  // ── Checkbox all ──
+  document.getElementById('checkAll').addEventListener('change', function() {
+    document.querySelectorAll('.row-check').forEach(c => c.checked = this.checked);
+  });
+
+  // ── Search ──
+  document.getElementById('searchInput').addEventListener('input', () => { currentPage=1; render(); });
+
+  // ── Add modal ──
+  document.getElementById('btnAddEvent').addEventListener('click', () => {
+    editTarget = null;
+    document.getElementById('modalTitle').textContent = 'Add New Event';
+    document.getElementById('editId').value = '';
+    document.getElementById('fTitle').value = '';
+    document.getElementById('fDate').value  = '';
+    document.getElementById('fTime').value  = '';
+    document.getElementById('fVenue').value = '';
+    document.getElementById('fDesc').value  = '';
+    document.getElementById('modalOverlay').classList.add('open');
+  });
+
+  function openEdit(id) {
+    const e = events.find(x => x.event_id===id);
+    if (!e) return;
+    editTarget = id;
+    document.getElementById('modalTitle').textContent = 'Edit Event';
+    document.getElementById('editId').value  = e.event_id;
+    document.getElementById('fTitle').value  = e.title;
+    document.getElementById('fDate').value   = e.event_date;
+    document.getElementById('fTime').value   = e.event_time;
+    document.getElementById('fVenue').value  = e.venue;
+    document.getElementById('fDesc').value   = e.description || '';
+    document.getElementById('modalOverlay').classList.add('open');
+  }
+
+  function closeModal() { document.getElementById('modalOverlay').classList.remove('open'); }
+  document.getElementById('modalClose').addEventListener('click', closeModal);
+  document.getElementById('modalCancel').addEventListener('click', closeModal);
+
+  document.getElementById('modalSave').addEventListener('click', async () => {
+    const title  = document.getElementById('fTitle').value.trim();
+    const date   = document.getElementById('fDate').value;
+    const time   = document.getElementById('fTime').value;
+    const venue  = document.getElementById('fVenue').value.trim();
+    const description = document.getElementById('fDesc').value.trim();
+
+    if (!title || !date || !time || !venue) {
+      alert('Please fill in all required fields (*).');
+      return;
+    }
+
+    const saveBtn = document.getElementById('modalSave');
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Saving…';
+
+    let error;
+    if (editTarget) {
+      ({ error } = await supabase
+        .from('events')
+        .update({ title, event_date: date, event_time: time, venue, description })
+        .eq('event_id', editTarget));
+    } else {
+      ({ error } = await supabase
+        .from('events')
+        .insert([{ title, event_date: date, event_time: time, venue, description }]));
+    }
+
+    saveBtn.disabled = false;
+    saveBtn.textContent = 'Save Event';
+
+    if (error) {
+      showToast('Save failed: ' + error.message);
+      return;
+    }
+
+    showToast(editTarget ? 'Event updated successfully!' : 'Event added successfully!');
+    closeModal();
+    await loadEvents();
+  });
+
+  // ── Delete ──
+  function openDelete(id) {
+    deleteTarget = id;
+    const e = events.find(x => x.event_id===id);
+    document.getElementById('delEventName').textContent = `Delete "${e.title}"?`;
+    document.getElementById('delOverlay').classList.add('open');
+  }
+
+  function closeDelModal() { document.getElementById('delOverlay').classList.remove('open'); }
+  document.getElementById('delClose').addEventListener('click', closeDelModal);
+  document.getElementById('delCancel').addEventListener('click', closeDelModal);
+
+  document.getElementById('delConfirm').addEventListener('click', async () => {
+    const { error } = await supabase.from('events').delete().eq('event_id', deleteTarget);
+    closeDelModal();
+    if (error) {
+      showToast('Delete failed: ' + error.message);
+      return;
+    }
+    showToast('Event deleted.');
+    await loadEvents();
+  });
+
+  // Delete selected
+  document.getElementById('btnDeleteSelected').addEventListener('click', async () => {
+    const checked = [...document.querySelectorAll('.row-check:checked')].map(c => parseInt(c.dataset.id));
+    if (checked.length === 0) { alert('Please select at least one event to delete.'); return; }
+    if (!confirm(`Delete ${checked.length} selected event(s)?`)) return;
+
+    const { error } = await supabase.from('events').delete().in('event_id', checked);
+    if (error) {
+      showToast('Delete failed: ' + error.message);
+      return;
+    }
+    showToast(`${checked.length} event(s) deleted.`);
+    await loadEvents();
+  });
+
+  // View (read-only alert for now)
+  function viewEvent(id) {
+    const e = events.find(x => x.event_id===id);
+    alert(`📋 ${e.title}\n📅 ${fmtDate(e.event_date)} at ${fmtTime(e.event_time)}\n📍 ${e.venue}\n\n${e.description||'No description.'}`);
+  }
+
+  // ── Toast ──
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    document.getElementById('toastMsg').textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 3000);
+  }
+
+  // Close modal on overlay click
+  document.getElementById('modalOverlay').addEventListener('click', e => { if(e.target===e.currentTarget) closeModal(); });
+  document.getElementById('delOverlay').addEventListener('click', e => { if(e.target===e.currentTarget) closeDelModal(); });
+
+  // ── Logout ──
+  document.getElementById('btnLogout').addEventListener('click', async () => {
+    await supabase.auth.signOut();
+    sessionStorage.removeItem('admin');
+    window.location.href = 'login.html';
+  });
+
+  // ── Init ──
+  checkSession();
+  loadEvents();
+</script>
+</body>
+</html>

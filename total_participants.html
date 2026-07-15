@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Participants – Clean-Up System</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+    :root {
+      --green-dark:  #1a5c2a;
+      --green-mid:   #2e8b3f;
+      --green-light: #4caf50;
+      --yellow:      #f5c800;
+      --navy:        #0d2340;
+      --white:       #ffffff;
+      --bg:          #f0f4f1;
+      --sidebar-bg:  #0d2340;
+      --text-main:   #1a2e1c;
+      --text-muted:  #5a7260;
+      --border:      #d0ddd2;
+      --row-hover:   #e8f5e9;
+      --red:         #c0392b;
+      --attend-bg:   #e8f5e9;
+      --absent-bg:   #fde8e8;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text-main);
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* ══ SIDEBAR ══ */
+    .sidebar {
+      width: 240px;
+      flex-shrink: 0;
+      background: var(--sidebar-bg);
+      display: flex;
+      flex-direction: column;
+      padding: 28px 0 24px;
+      position: fixed;
+      top: 0; left: 0; bottom: 0;
+      z-index: 100;
+    }
+
+    .sidebar-logo {
+      display: flex;
+      justify-content: center;
+      padding: 0 20px 28px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .sidebar-logo img { width: 120px; height: 120px; object-fit: contain; }
+
+    .sidebar-logo .logo-placeholder {
+      width: 100px; height: 100px; border-radius: 50%;
+      background: rgba(255,255,255,0.1);
+      border: 2px dashed rgba(255,255,255,0.3);
+      display: flex; align-items: center; justify-content: center;
+      color: rgba(255,255,255,0.4); font-size: 12px;
+    }
+
+    .sidebar-nav {
+      flex: 1; padding: 20px 16px;
+      display: flex; flex-direction: column; gap: 6px;
+    }
+
+    .nav-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 11px 16px; border-radius: 10px;
+      color: rgba(255,255,255,0.6); font-size: 14px; font-weight: 500;
+      cursor: pointer; text-decoration: none;
+      transition: background 0.15s, color 0.15s;
+      border: none; background: none; width: 100%; text-align: left;
+    }
+
+    .nav-item svg { width: 18px; height: 18px; flex-shrink: 0; }
+    .nav-item:hover { background: rgba(255,255,255,0.08); color: #fff; }
+    .nav-item.active { background: var(--green-mid); color: #fff; }
+    .nav-item.active svg { color: var(--yellow); }
+
+    .sidebar-bottom {
+      padding: 16px 16px 0;
+      border-top: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .btn-logout {
+      display: flex; align-items: center; gap: 10px;
+      width: 100%; padding: 11px 16px; border-radius: 10px;
+      background: rgba(192,57,43,0.2); color: #ff8a80;
+      border: none; font-size: 14px; font-weight: 500;
+      font-family: inherit; cursor: pointer; transition: background 0.15s;
+    }
+
+    .btn-logout:hover { background: rgba(192,57,43,0.4); }
+    .btn-logout svg { width: 18px; height: 18px; }
+
+    /* ══ MAIN ══ */
+    .main {
+      margin-left: 240px; flex: 1;
+      display: flex; flex-direction: column; min-height: 100vh;
+    }
+
+    .topbar {
+      background: var(--white); border-bottom: 1px solid var(--border);
+      padding: 16px 32px; display: flex; align-items: center;
+      justify-content: space-between; position: sticky; top: 0; z-index: 50;
+    }
+
+    .topbar-left h1 { font-size: 20px; font-weight: 700; color: var(--text-main); }
+    .topbar-left p  { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+
+    .admin-badge {
+      display: flex; align-items: center; gap: 10px;
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 999px; padding: 6px 14px 6px 8px;
+    }
+
+    .admin-avatar {
+      width: 30px; height: 30px; border-radius: 50%;
+      background: var(--green-mid); display: flex;
+      align-items: center; justify-content: center;
+      color: #fff; font-size: 12px; font-weight: 700;
+    }
+
+    .admin-badge span { font-size: 13px; font-weight: 600; color: var(--text-main); }
+
+    .content { padding: 28px 32px; flex: 1; }
+
+    /* ══ CONTROLS BAR ══ */
+    .controls-bar {
+      display: flex; align-items: center; gap: 14px;
+      margin-bottom: 24px; flex-wrap: wrap;
+    }
+
+    .select-event {
+      display: flex; align-items: center; gap: 10px;
+      background: var(--white); border: 1.5px solid var(--border);
+      border-radius: 10px; padding: 10px 16px;
+      font-size: 14px; font-family: inherit; color: var(--text-main);
+      cursor: pointer; outline: none; min-width: 260px;
+      transition: border-color 0.2s;
+    }
+
+    .select-event:focus { border-color: var(--green-light); }
+
+    .select-event-wrap {
+      position: relative; display: inline-flex; align-items: center;
+    }
+
+    .select-event-wrap svg {
+      position: absolute; left: 14px; width: 16px; height: 16px;
+      color: var(--green-mid); pointer-events: none;
+    }
+
+    .select-event-wrap select {
+      padding-left: 38px;
+    }
+
+    /* Summary badges */
+    .summary-badges {
+      display: flex; gap: 10px; margin-left: auto;
+    }
+
+    .badge {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 16px; border-radius: 999px;
+      font-size: 13px; font-weight: 600;
+    }
+
+    .badge-attend { background: #e8f5e9; color: var(--green-dark); border: 1.5px solid #b2dfdb; }
+    .badge-absent { background: #fde8e8; color: var(--red); border: 1.5px solid #ffcdd2; }
+    .badge svg { width: 14px; height: 14px; }
+
+    /* ══ TWO COLUMN LAYOUT ══ */
+    .columns {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    .col-card {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+    }
+
+    .col-head {
+      padding: 16px 20px;
+      display: flex; align-items: center; gap: 10px;
+      font-size: 15px; font-weight: 700;
+    }
+
+    .col-head.attend {
+      background: linear-gradient(135deg, #1a5c2a, #2e8b3f);
+      color: #fff;
+    }
+
+    .col-head.absent {
+      background: linear-gradient(135deg, #922b21, #c0392b);
+      color: #fff;
+    }
+
+    .col-head svg { width: 18px; height: 18px; }
+
+    .col-count {
+      margin-left: auto;
+      background: rgba(255,255,255,0.2);
+      border-radius: 999px;
+      padding: 2px 12px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    /* Search inside column */
+    .col-search {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      position: relative;
+    }
+
+    .col-search svg {
+      position: absolute; left: 28px; top: 50%;
+      transform: translateY(-50%);
+      width: 14px; height: 14px; color: #aaa; pointer-events: none;
+    }
+
+    .col-search input {
+      width: 100%; padding: 8px 12px 8px 34px;
+      border: 1.5px solid var(--border); border-radius: 8px;
+      font-size: 13px; font-family: inherit; outline: none;
+      background: #fafafa; transition: border-color 0.2s;
+    }
+
+    .col-search input:focus { border-color: var(--green-light); background: #fff; }
+
+    /* Participant list */
+    .participant-list {
+      min-height: 320px;
+      max-height: 480px;
+      overflow-y: auto;
+    }
+
+    .participant-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 20px;
+      border-bottom: 1px solid #eef2ee;
+      transition: background 0.12s;
+    }
+
+    .participant-item:last-child { border-bottom: none; }
+    .participant-item:hover { background: var(--row-hover); }
+
+    .p-avatar {
+      width: 36px; height: 36px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 700; flex-shrink: 0;
+    }
+
+    .attend .p-avatar { background: #c8e6c9; color: var(--green-dark); }
+    .absent .p-avatar { background: #ffcdd2; color: #b71c1c; }
+
+    .p-info { flex: 1; min-width: 0; }
+    .p-name { font-size: 14px; font-weight: 600; color: var(--text-main); }
+    .p-email { font-size: 12px; color: var(--text-muted); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    .p-status {
+      font-size: 11px; font-weight: 700; padding: 3px 10px;
+      border-radius: 999px; flex-shrink: 0;
+    }
+
+    .attend .p-status { background: #e8f5e9; color: var(--green-dark); }
+    .absent .p-status { background: #fde8e8; color: var(--red); }
+
+    /* Empty state */
+    .col-empty {
+      text-align: center; padding: 48px 20px; color: var(--text-muted);
+    }
+
+    .col-empty svg { width: 40px; height: 40px; opacity: 0.25; margin-bottom: 10px; }
+    .col-empty p { font-size: 13px; }
+
+    /* Col footer */
+    .col-footer {
+      padding: 10px 20px;
+      border-top: 1px solid var(--border);
+      background: #fafcfa;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* No event selected */
+    .no-event {
+      text-align: center; padding: 80px 20px; color: var(--text-muted);
+      grid-column: 1 / -1;
+    }
+
+    .no-event svg { width: 56px; height: 56px; opacity: 0.2; margin-bottom: 14px; }
+    .no-event h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+    .no-event p  { font-size: 13px; }
+  </style>
+</head>
+<body>
+
+<!-- ══ SIDEBAR ══ -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <img src="asset/logo.png" alt="Logo"
+         onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+    <div class="logo-placeholder" style="display:none">Logo</div>
+  </div>
+
+  <nav class="sidebar-nav">
+    <a class="nav-item" href="event_management.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+      </svg>
+      Event List
+    </a>
+    <a class="nav-item active" href="total_participants.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+      </svg>
+      Participants
+    </a>
+    <a class="nav-item" href="list_tools.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+      </svg>
+      Tools
+    </a>
+    <a class="nav-item" href="notification.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+      </svg>
+      Notification Center
+    </a>
+    <a class="nav-item" href="settings.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+      </svg>
+      Settings
+    </a>
+  </nav>
+
+  <div class="sidebar-bottom">
+    <button class="btn-logout" id="btnLogout">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+      </svg>
+      Log Out
+    </button>
+  </div>
+</aside>
+
+<!-- ══ MAIN ══ -->
+<div class="main">
+
+  <div class="topbar">
+    <div class="topbar-left">
+      <h1>Total Participants</h1>
+      <p>Residential Community Clean-Up Announcement System</p>
+    </div>
+    <div class="admin-badge">
+      <div class="admin-avatar">A</div>
+      <span>Admin</span>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- Controls -->
+    <div class="controls-bar">
+      <div class="select-event-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+        </svg>
+        <select class="select-event" id="eventSelect">
+          <option value="">— Select an Event —</option>
+        </select>
+      </div>
+
+      <div class="summary-badges" id="summaryBadges" style="display:none">
+        <span class="badge badge-attend">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          Attend: <strong id="countAttend">0</strong>
+        </span>
+        <span class="badge badge-absent">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          Absent: <strong id="countAbsent">0</strong>
+        </span>
+        <span class="badge" style="background:#f0f4f1;color:var(--text-muted);border:1.5px solid var(--border);">
+          Total: <strong id="countTotal">0</strong>
+        </span>
+      </div>
+    </div>
+
+    <!-- Columns -->
+    <div class="columns" id="columnsWrap">
+
+      <!-- No event selected -->
+      <div class="no-event" id="noEventMsg">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+        <h3>No Event Selected</h3>
+        <p>Please select an event above to view participants.</p>
+      </div>
+
+      <!-- Attend column -->
+      <div class="col-card" id="attendCard" style="display:none">
+        <div class="col-head attend">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          Attended
+          <span class="col-count" id="attendColCount">0</span>
+        </div>
+        <div class="col-search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="searchAttend" placeholder="Search attended…">
+        </div>
+        <div class="participant-list attend" id="attendList"></div>
+        <div class="col-footer" id="attendFooter"></div>
+      </div>
+
+      <!-- Absent column -->
+      <div class="col-card" id="absentCard" style="display:none">
+        <div class="col-head absent">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          Absent
+          <span class="col-count" id="absentColCount">0</span>
+        </div>
+        <div class="col-search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="searchAbsent" placeholder="Search absent…">
+        </div>
+        <div class="participant-list absent" id="absentList"></div>
+        <div class="col-footer" id="absentFooter"></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  const SUPABASE_URL = "https://dlhqubrluorfszaqqugh.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRsaHF1YnJsdW9yZnN6YXFxdWdoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2Nzg1ODksImV4cCI6MjA5NzI1NDU4OX0.zMLZyMwh7sZOJQIHWOC217yitvFDdd2_Fqegpm-l2Nw";
+  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+</script>
+<script>
+  // ── Auth guard: kick back to login if no admin logged in ──
+  async function checkSession() {
+    const { data: { session } } = await supabase.auth.getSession();
+    const admin = sessionStorage.getItem('admin');
+    if (!session || !admin) {
+      window.location.href = 'login.html';
+    }
+  }
+
+  // ── Logout ──
+  document.getElementById('btnLogout').addEventListener('click', async () => {
+    await supabase.auth.signOut();
+    sessionStorage.removeItem('admin');
+    window.location.href = 'login.html';
+  });
+
+  const sel = document.getElementById('eventSelect');
+  let currentAttend = [];
+  let currentAbsent = [];
+
+  function fmtDate(d) {
+    if (!d) return '';
+    const [y,m,day] = d.split('-');
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return `${parseInt(day)} ${months[parseInt(m)-1]} ${y}`;
+  }
+
+  function initials(name) {
+    return name.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+  }
+
+  // ── Load events into dropdown ──
+  async function loadEventsDropdown() {
+    const { data, error } = await supabase
+      .from('events')
+      .select('event_id, title, event_date')
+      .order('event_date', { ascending: true });
+
+    if (error) {
+      alert('Failed to load events: ' + error.message);
+      return;
+    }
+
+    (data || []).forEach(e => {
+      const o = document.createElement('option');
+      o.value = e.event_id;
+      o.textContent = `${e.title}  (${fmtDate(e.event_date)})`;
+      sel.appendChild(o);
+    });
+  }
+
+  function renderList(containerId, footerId, countId, list, type) {
+    const container = document.getElementById(containerId);
+    const footer    = document.getElementById(footerId);
+    const countEl   = document.getElementById(countId);
+
+    countEl.textContent = list.length;
+
+    if (list.length === 0) {
+      container.innerHTML = `
+        <div class="col-empty">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+          </svg>
+          <p>No participants found.</p>
+        </div>`;
+    } else {
+      container.innerHTML = list.map(p => `
+        <div class="participant-item">
+          <div class="p-avatar">${initials(p.name)}</div>
+          <div class="p-info">
+            <div class="p-name">${p.name}</div>
+            <div class="p-email">${p.email}</div>
+          </div>
+          <span class="p-status">${type === 'attend' ? 'Attended' : 'Absent'}</span>
+        </div>
+      `).join('');
+    }
+
+    footer.textContent = `${list.length} participant${list.length !== 1 ? 's' : ''}`;
+  }
+
+  // ── Load participants for selected event from Supabase ──
+  async function loadEvent(eventId) {
+    const { data, error } = await supabase
+      .from('participants')
+      .select('*')
+      .eq('event_id', eventId);
+
+    if (error) {
+      alert('Failed to load participants: ' + error.message);
+      return;
+    }
+
+    const list = data || [];
+    currentAttend = list.filter(p => p.status === 'Attend');
+    currentAbsent = list.filter(p => p.status === 'Absent');
+
+    document.getElementById('noEventMsg').style.display  = 'none';
+    document.getElementById('attendCard').style.display  = 'block';
+    document.getElementById('absentCard').style.display  = 'block';
+    document.getElementById('summaryBadges').style.display = 'flex';
+
+    document.getElementById('countAttend').textContent = currentAttend.length;
+    document.getElementById('countAbsent').textContent = currentAbsent.length;
+    document.getElementById('countTotal').textContent  = list.length;
+
+    document.getElementById('searchAttend').value = '';
+    document.getElementById('searchAbsent').value = '';
+
+    renderList('attendList', 'attendFooter', 'attendColCount', currentAttend, 'attend');
+    renderList('absentList', 'absentFooter', 'absentColCount', currentAbsent, 'absent');
+  }
+
+  function showNoEvent() {
+    document.getElementById('noEventMsg').style.display  = 'block';
+    document.getElementById('attendCard').style.display  = 'none';
+    document.getElementById('absentCard').style.display  = 'none';
+    document.getElementById('summaryBadges').style.display = 'none';
+  }
+
+  // ── Event select ──
+  sel.addEventListener('change', () => {
+    const id = parseInt(sel.value);
+    if (id) loadEvent(id);
+    else showNoEvent();
+  });
+
+  // ── Search attend ──
+  document.getElementById('searchAttend').addEventListener('input', function() {
+    const q = this.value.toLowerCase();
+    const filtered = currentAttend.filter(p =>
+      p.name.toLowerCase().includes(q) || p.email.toLowerCase().includes(q)
+    );
+    renderList('attendList', 'attendFooter', 'attendColCount', filtered, 'attend');
+  });
+
+  // ── Search absent ──
+  document.getElementById('searchAbsent').addEventListener('input', function() {
+    const q = this.value.toLowerCase();
+    const filtered = currentAbsent.filter(p =>
+      p.name.toLowerCase().includes(q) || p.email.toLowerCase().includes(q)
+    );
+    renderList('absentList', 'absentFooter', 'absentColCount', filtered, 'absent');
+  });
+
+  // ── Init ──
+  checkSession();
+  loadEventsDropdown();
+</script>
+</body>
+</html>
