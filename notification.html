@@ -275,7 +275,7 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
       Event List
     </a>
-    <a class="nav-item" href="participants.html">
+    <a class="nav-item" href="total_participants.html">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
       Participants
     </a>
@@ -293,7 +293,7 @@
     </a>
   </nav>
   <div class="sidebar-bottom">
-    <button class="btn-logout" onclick="window.location.href='login.html'">
+    <button class="btn-logout" id="btnLogout">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
       Log Out
     </button>
@@ -335,11 +335,6 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                 <select class="field-select" id="nEvent">
                   <option value="">— No specific event —</option>
-                  <option value="1">Taman Maju Block A Clean-Up (5 Jul 2026)</option>
-                  <option value="2">Jalan Kenanga Gotong-Royong (12 Jul 2026)</option>
-                  <option value="3">Taman Indah Recycling Drive (1 Jul 2026)</option>
-                  <option value="4">Lorong Damai Park Restoration (20 Jul 2026)</option>
-                  <option value="5">Taman Sejahtera Q2 Clean-Up (15 Jun 2026)</option>
                 </select>
               </div>
             </div>
@@ -422,23 +417,85 @@
   <span id="toastMsg">Notification sent!</span>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-  let notifHistory = [
-    { id:1, title:'Gotong-Royong This Sunday!', message:'Reminder to all residents that our monthly gotong-royong will be held this Sunday at 8AM. Please bring your own gloves and wear appropriate attire.', target:'all', event:'Taman Maju Block A Clean-Up', time:'28 Jun 2026, 10:32 AM' },
-    { id:2, title:'Thank You for Attending!', message:'Thank you to all participants who joined the Taman Indah Recycling Drive. Your effort makes our community cleaner and greener!', target:'attend', event:'Taman Indah Recycling Drive', time:'2 Jul 2026, 3:15 PM' },
-    { id:3, title:'Upcoming Event Reminder', message:'This is a reminder for the Lorong Damai Park Restoration event next week. Please check the event details for venue and time.', target:'all', event:'Lorong Damai Park Restoration', time:'14 Jul 2026, 9:00 AM' },
-    { id:4, title:'Tools Collection Notice', message:'Please return all borrowed tools to the community hall by Friday 5PM. This helps us prepare for the next event.', target:'attend', event:'Taman Sejahtera Q2 Clean-Up', time:'16 Jun 2026, 11:00 AM' },
-    { id:5, title:'New Event Announced!', message:'A new clean-up event has been scheduled for Jalan Kenanga area. Please register your attendance through the community portal.', target:'all', event:'', time:'20 Jun 2026, 8:45 AM' },
-    { id:6, title:'Weather Update', message:'Due to forecasted heavy rain, the Taman Maju Block A Clean-Up has been rescheduled. New date will be announced shortly. Thank you for your understanding.', target:'all', event:'Taman Maju Block A Clean-Up', time:'4 Jul 2026, 7:00 AM' },
-  ];
+  // Client Supabase — guna nama unik "db" supaya TIDAK berlanggar dengan
+  // window.supabase (library) atau mana-mana script lama yang declare "supabase"
+  var db = window.supabase.createClient(
+    "https://dlhqubrluorfszaqqugh.supabase.co",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRsaHF1YnJsdW9yZnN6YXFxdWdoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2Nzg1ODksImV4cCI6MjA5NzI1NDU4OX0.zMLZyMwh7sZOJQIHWOC217yitvFDdd2_Fqegpm-l2Nw"
+  );
+</script>
+<script>
+(() => { // IIFE: lindungi semua variable dari clash dengan script lain
+  // ── Auth guard: kick back to login if no admin logged in ──
+  async function checkSession() {
+    const { data: { session } } = await db.auth.getSession();
+    const admin = sessionStorage.getItem('admin');
+    if (!session || !admin) {
+      window.location.href = 'login.html';
+    }
+  }
 
-  let nextId = 7;
+  // ── Logout (now matches the other pages: signs out of Supabase + clears session) ──
+  document.getElementById('btnLogout').addEventListener('click', async () => {
+    await db.auth.signOut();
+    sessionStorage.removeItem('admin');
+    window.location.href = 'login.html';
+  });
 
-  function fmtNow() {
-    const d = new Date();
+  let notifHistory = [];
+  const currentAdmin = JSON.parse(sessionStorage.getItem('admin') || 'null');
+
+  // ── Load sent history from Supabase "notifications" table ──
+  async function loadHistory() {
+    const { data, error } = await db
+      .from('notifications')
+      .select('*, events(title)')
+      .order('sent_at', { ascending: false });
+
+    if (error) {
+      showToast('Failed to load history: ' + error.message);
+      return;
+    }
+    notifHistory = data || [];
+    renderHistory();
+  }
+
+  function fmtDateTime(ts) {
+    if (!ts) return '';
+    const d = new Date(ts);
     const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     const h = d.getHours(), m = d.getMinutes();
     return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}, ${h%12||12}:${String(m).padStart(2,'0')} ${h>=12?'PM':'AM'}`;
+  }
+
+  // ── Load REAL events from Supabase into the dropdown ──
+  function fmtDate(d) {
+    if (!d) return '';
+    const [y,m,day] = d.split('-');
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return `${parseInt(day)} ${months[parseInt(m)-1]} ${y}`;
+  }
+
+  async function loadEventsDropdown() {
+    const { data, error } = await db
+      .from('events')
+      .select('event_id, title, event_date')
+      .order('event_date', { ascending: true });
+
+    if (error) {
+      showToast('Failed to load events: ' + error.message);
+      return;
+    }
+
+    const sel = document.getElementById('nEvent');
+    (data || []).forEach(e => {
+      const o = document.createElement('option');
+      o.value = e.event_id;
+      o.textContent = `${e.title} (${fmtDate(e.event_date)})`;
+      sel.appendChild(o);
+    });
   }
 
   function renderHistory() {
@@ -454,31 +511,39 @@
       return;
     }
 
-    list.innerHTML = [...notifHistory].reverse().map(n => `
+    list.innerHTML = notifHistory.map(n => {
+      const t = n.target_audience === 'All' ? 'all' : 'attend';
+      const eventTitle = n.events ? n.events.title : '';
+      return `
       <div class="notif-item">
         <div class="notif-top">
-          <div class="notif-dot ${n.target}"></div>
+          <div class="notif-dot ${t}"></div>
           <div class="notif-title">${n.title}</div>
-          <span class="notif-badge ${n.target === 'all' ? 'badge-all' : 'badge-attend'}">
-            ${n.target === 'all' ? 'All Residents' : 'Attended Only'}
+          <span class="notif-badge ${t === 'all' ? 'badge-all' : 'badge-attend'}">
+            ${t === 'all' ? 'All Residents' : 'Attended Only'}
           </span>
         </div>
         <div class="notif-msg">${n.message}</div>
         <div class="notif-meta">
-          <span>🕐 ${n.time}</span>
-          ${n.event ? `<span>📅 ${n.event}</span>` : ''}
+          <span>🕐 ${fmtDateTime(n.sent_at)}</span>
+          ${eventTitle ? `<span>📅 ${eventTitle}</span>` : ''}
         </div>
-      </div>
-    `).join('');
+      </div>`;
+    }).join('');
   }
 
-  // Checkbox toggle
+  // Toggle pilihan — hanya SATU boleh dipilih pada satu masa (macam radio button)
   ['All','Attend'].forEach(type => {
     const opt = document.getElementById(`opt${type}`);
     const chk = document.getElementById(`chk${type}`);
     opt.addEventListener('click', () => {
       chk.checked = !chk.checked;
       opt.classList.toggle('selected', chk.checked);
+      if (chk.checked) {
+        const other = type === 'All' ? 'Attend' : 'All';
+        document.getElementById(`chk${other}`).checked = false;
+        document.getElementById(`opt${other}`).classList.remove('selected');
+      }
       validateForm();
     });
   });
@@ -501,19 +566,36 @@
     document.getElementById('btnSend').disabled = !(title && msg && anyChk);
   }
 
-  // Send
-  document.getElementById('btnSend').addEventListener('click', () => {
+  // Send — inserts into Supabase "notifications" table (permanent + visible to FlutterFlow)
+  document.getElementById('btnSend').addEventListener('click', async () => {
     const title    = document.getElementById('nTitle').value.trim();
     const msg      = document.getElementById('nMessage').value.trim();
     const toAll    = document.getElementById('chkAll').checked;
     const toAttend = document.getElementById('chkAttend').checked;
     const eventSel = document.getElementById('nEvent');
-    const eventTxt = eventSel.options[eventSel.selectedIndex].text;
-    const target   = (toAll && toAttend) || toAll ? 'all' : 'attend';
+    const target   = (toAll && toAttend) || toAll ? 'All' : 'Attendees';
 
-    notifHistory.push({ id: nextId++, title, message: msg, target, event: eventSel.value ? eventTxt : '', time: fmtNow() });
+    const btn = document.getElementById('btnSend');
+    btn.disabled = true;
 
-    // Reset
+    const payload = {
+      admin_id: currentAdmin ? currentAdmin.admin_id : null,
+      event_id: eventSel.value ? parseInt(eventSel.value) : null,
+      title,
+      message: msg,
+      target_audience: target,
+      sent_at: new Date().toISOString()
+    };
+
+    const { error } = await db.from('notifications').insert([payload]);
+
+    if (error) {
+      showToast('Send failed: ' + error.message);
+      btn.disabled = false;
+      return;
+    }
+
+    // Reset form
     document.getElementById('nTitle').value   = '';
     document.getElementById('nMessage').value = '';
     document.getElementById('nEvent').value   = '';
@@ -525,8 +607,7 @@
       document.getElementById(`opt${t}`).classList.remove('selected');
     });
 
-    document.getElementById('btnSend').disabled = true;
-    renderHistory();
+    await loadHistory();
 
     // Scroll history to top so new item is visible
     document.getElementById('historyList').scrollTop = 0;
@@ -541,7 +622,11 @@
     setTimeout(() => t.classList.remove('show'), 3000);
   }
 
-  renderHistory();
+  // ── Init ──
+  checkSession();
+  loadEventsDropdown();
+  loadHistory();
+})();
 </script>
 </body>
 </html>

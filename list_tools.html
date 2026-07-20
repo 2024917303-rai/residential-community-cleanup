@@ -290,14 +290,18 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-  const SUPABASE_URL = "https://dlhqubrluorfszaqqugh.supabase.co";
-  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRsaHF1YnJsdW9yZnN6YXFxdWdoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2Nzg1ODksImV4cCI6MjA5NzI1NDU4OX0.zMLZyMwh7sZOJQIHWOC217yitvFDdd2_Fqegpm-l2Nw";
-  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  // Client Supabase — guna nama unik "db" supaya TIDAK berlanggar dengan
+  // window.supabase (library) atau mana-mana script lama yang declare "supabase"
+  var db = window.supabase.createClient(
+    "https://dlhqubrluorfszaqqugh.supabase.co",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRsaHF1YnJsdW9yZnN6YXFxdWdoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2Nzg1ODksImV4cCI6MjA5NzI1NDU4OX0.zMLZyMwh7sZOJQIHWOC217yitvFDdd2_Fqegpm-l2Nw"
+  );
 </script>
 <script>
+(() => { // IIFE: lindungi semua variable dari clash dengan script lain
   // ── Auth guard: kick back to login if no admin logged in ──
   async function checkSession() {
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { session } } = await db.auth.getSession();
     const admin = sessionStorage.getItem('admin');
     if (!session || !admin) {
       window.location.href = 'login.html';
@@ -306,7 +310,7 @@
 
   // ── Logout ──
   document.getElementById('btnLogout').addEventListener('click', async () => {
-    await supabase.auth.signOut();
+    await db.auth.signOut();
     sessionStorage.removeItem('admin');
     window.location.href = 'login.html';
   });
@@ -319,7 +323,7 @@
 
   // ── Fetch tools from Supabase ──
   async function loadTools() {
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from('tools')
       .select('*')
       .order('tool_id', { ascending: true });
@@ -408,12 +412,12 @@
 
     let error;
     if (editTarget) {
-      ({ error } = await supabase
+      ({ error } = await db
         .from('tools')
         .update({ name, quantity })
         .eq('tool_id', editTarget));
     } else {
-      ({ error } = await supabase
+      ({ error } = await db
         .from('tools')
         .insert([{ name, quantity }]));
     }
@@ -443,7 +447,7 @@
   document.getElementById('delCancel').addEventListener('click', closeDelModal);
 
   document.getElementById('delConfirm').addEventListener('click', async () => {
-    const { error } = await supabase.from('tools').delete().eq('tool_id', deleteTarget);
+    const { error } = await db.from('tools').delete().eq('tool_id', deleteTarget);
     closeDelModal();
     if (error) {
       showToast('Delete failed: ' + error.message);
@@ -458,7 +462,7 @@
     if (checked.length === 0) { alert('Please select at least one tool.'); return; }
     if (!confirm(`Delete ${checked.length} selected tool(s)?`)) return;
 
-    const { error } = await supabase.from('tools').delete().in('tool_id', checked);
+    const { error } = await db.from('tools').delete().in('tool_id', checked);
     if (error) {
       showToast('Delete failed: ' + error.message);
       return;
@@ -477,9 +481,14 @@
   document.getElementById('modalOverlay').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal(); });
   document.getElementById('delOverlay').addEventListener('click',   e => { if (e.target === e.currentTarget) closeDelModal(); });
 
+  // Dedahkan function yang dipanggil oleh onclick dalam HTML
+  window.openEdit = openEdit;
+  window.openDelete = openDelete;
+
   // ── Init ──
   checkSession();
   loadTools();
+})();
 </script>
 </body>
 </html>
