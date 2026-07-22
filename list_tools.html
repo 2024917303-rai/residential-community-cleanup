@@ -100,6 +100,7 @@
     .icon-btn { width: 32px; height: 32px; border-radius: 7px; border: 1px solid var(--border); background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
     .icon-btn svg { width: 14px; height: 14px; }
     .icon-btn.edit:hover { background: #e8f5e9; border-color: var(--green-light); color: var(--green-mid); }
+    .icon-btn.view:hover { background: #e3f2fd; border-color: #90caf9; color: #1976d2; }
     .icon-btn.del:hover  { background: #fde8e8; border-color: #e88; color: var(--red); }
 
     .empty-state { text-align: center; padding: 60px 20px; color: var(--text-muted); }
@@ -283,6 +284,40 @@
   </div>
 </div>
 
+<!-- VIEW TOOL + ASSIGN EVENTS MODAL -->
+<div class="modal-overlay" id="viewOverlay">
+  <div class="modal" style="width:min(560px, 95vw)">
+    <div class="modal-head">
+      <h3 id="viewToolTitle">Tool Details</h3>
+      <button class="modal-close" id="viewClose">✕</button>
+    </div>
+    <div class="modal-body" style="display:block">
+      <p id="viewToolInfo" style="font-size:13.5px; color:var(--text-muted); line-height:1.6; margin-bottom:18px;"></p>
+
+      <h4 style="font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:var(--text-muted); margin-bottom:10px;">Events Using This Tool</h4>
+
+      <div id="assignedEventsList" style="display:flex; flex-direction:column; gap:8px; margin-bottom:16px;"></div>
+
+      <div style="display:flex; gap:8px; align-items:flex-end; border-top:1px solid var(--border); padding-top:16px;">
+        <div style="flex:1">
+          <label style="display:block; font-size:11px; font-weight:700; text-transform:uppercase; color:var(--text-muted); margin-bottom:6px;">Event</label>
+          <select id="assignEventSelect" style="width:100%; padding:9px 10px; border:1.5px solid var(--border); border-radius:8px; font-size:13.5px; font-family:inherit;">
+            <option value="">— Select event —</option>
+          </select>
+        </div>
+        <div style="width:100px">
+          <label style="display:block; font-size:11px; font-weight:700; text-transform:uppercase; color:var(--text-muted); margin-bottom:6px;">Quantity</label>
+          <input type="number" id="assignEventQty" min="1" placeholder="0" style="width:100%; padding:9px 10px; border:1.5px solid var(--border); border-radius:8px; font-size:13.5px; font-family:inherit;">
+        </div>
+        <button class="btn-save" id="btnAssignEvent" style="padding:9px 18px; white-space:nowrap;">Add</button>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-cancel" id="viewCloseFoot">Close</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
   <span id="toastMsg">Done!</span>
@@ -290,18 +325,14 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-  // Client Supabase — guna nama unik "db" supaya TIDAK berlanggar dengan
-  // window.supabase (library) atau mana-mana script lama yang declare "supabase"
-  var db = window.supabase.createClient(
-    "https://dlhqubrluorfszaqqugh.supabase.co",
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRsaHF1YnJsdW9yZnN6YXFxdWdoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2Nzg1ODksImV4cCI6MjA5NzI1NDU4OX0.zMLZyMwh7sZOJQIHWOC217yitvFDdd2_Fqegpm-l2Nw"
-  );
+  const SUPABASE_URL = "https://dlhqubrluorfszaqqugh.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRsaHF1YnJsdW9yZnN6YXFxdWdoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2Nzg1ODksImV4cCI6MjA5NzI1NDU4OX0.zMLZyMwh7sZOJQIHWOC217yitvFDdd2_Fqegpm-l2Nw";
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 </script>
 <script>
-(() => { // IIFE: lindungi semua variable dari clash dengan script lain
   // ── Auth guard: kick back to login if no admin logged in ──
   async function checkSession() {
-    const { data: { session } } = await db.auth.getSession();
+    const { data: { session } } = await sb.auth.getSession();
     const admin = sessionStorage.getItem('admin');
     if (!session || !admin) {
       window.location.href = 'login.html';
@@ -309,10 +340,10 @@
   }
 
   // ── Logout ──
-  document.getElementById('btnLogout').addEventListener('click', async () => {
-    await db.auth.signOut();
+  document.getElementById('btnLogout').addEventListener('click', () => {
     sessionStorage.removeItem('admin');
     window.location.href = 'login.html';
+    sb.auth.signOut();
   });
 
   let tools = [];
@@ -323,7 +354,7 @@
 
   // ── Fetch tools from Supabase ──
   async function loadTools() {
-    const { data, error } = await db
+    const { data, error } = await sb
       .from('tools')
       .select('*')
       .order('tool_id', { ascending: true });
@@ -364,6 +395,7 @@
         <td><span class="${s.cls}">${t.quantity} units</span></td>
         <td><div class="stock-bar-wrap"><div class="stock-bar"><div class="stock-fill ${s.fill}" style="width:${s.pct}%"></div></div><span style="font-size:12px;color:var(--text-muted);white-space:nowrap">${s.label}</span></div></td>
         <td><div class="action-btns">
+          <button class="icon-btn view" title="View Events Using This Tool" onclick="viewTool(${t.tool_id})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
           <button class="icon-btn edit" title="Edit" onclick="openEdit(${t.tool_id})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
           <button class="icon-btn del" title="Delete" onclick="openDelete(${t.tool_id})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6M9 6V4h6v2"/></svg></button>
         </div></td>
@@ -412,12 +444,12 @@
 
     let error;
     if (editTarget) {
-      ({ error } = await db
+      ({ error } = await sb
         .from('tools')
         .update({ name, quantity })
         .eq('tool_id', editTarget));
     } else {
-      ({ error } = await db
+      ({ error } = await sb
         .from('tools')
         .insert([{ name, quantity }]));
     }
@@ -447,7 +479,7 @@
   document.getElementById('delCancel').addEventListener('click', closeDelModal);
 
   document.getElementById('delConfirm').addEventListener('click', async () => {
-    const { error } = await db.from('tools').delete().eq('tool_id', deleteTarget);
+    const { error } = await sb.from('tools').delete().eq('tool_id', deleteTarget);
     closeDelModal();
     if (error) {
       showToast('Delete failed: ' + error.message);
@@ -462,7 +494,7 @@
     if (checked.length === 0) { alert('Please select at least one tool.'); return; }
     if (!confirm(`Delete ${checked.length} selected tool(s)?`)) return;
 
-    const { error } = await db.from('tools').delete().in('tool_id', checked);
+    const { error } = await sb.from('tools').delete().in('tool_id', checked);
     if (error) {
       showToast('Delete failed: ' + error.message);
       return;
@@ -478,17 +510,117 @@
     setTimeout(() => t.classList.remove('show'), 3000);
   }
 
+  // ── View tool + manage which events use it ──
+  let viewToolId = null;
+
+  function fmtEventDate(d) {
+    if (!d) return '';
+    const [y,m,day] = d.split('-');
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return `${parseInt(day)} ${months[parseInt(m)-1]} ${y}`;
+  }
+
+  async function loadEventsForDropdown() {
+    const { data, error } = await sb.from('events').select('event_id, title, event_date').order('event_date', { ascending: false });
+    if (error) {
+      showToast('Failed to load events: ' + error.message);
+      return;
+    }
+    const sel = document.getElementById('assignEventSelect');
+    sel.innerHTML = '<option value="">— Select event —</option>' +
+      (data || []).map(e => `<option value="${e.event_id}">${e.title} (${fmtEventDate(e.event_date)})</option>`).join('');
+  }
+
+  async function loadAssignedEvents(toolId) {
+    const { data, error } = await sb
+      .from('event_tools')
+      .select('event_tool_id, quantity_used, event_id, events(title, event_date)')
+      .eq('tool_id', toolId);
+
+    const list = document.getElementById('assignedEventsList');
+
+    if (error) {
+      list.innerHTML = `<p style="font-size:13px;color:var(--red)">Failed to load: ${error.message}</p>`;
+      return;
+    }
+
+    if (!data || data.length === 0) {
+      list.innerHTML = `<p style="font-size:13px;color:var(--text-muted)">This tool is not assigned to any event yet.</p>`;
+      return;
+    }
+
+    list.innerHTML = data.map(row => `
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:8px 12px; background:#f5f8f5; border-radius:8px;">
+        <span style="font-size:13.5px;">${row.events ? row.events.title : 'Unknown event'} (${row.events ? fmtEventDate(row.events.event_date) : ''}) — <strong>${row.quantity_used}</strong> unit</span>
+        <button onclick="removeAssignedEvent(${row.event_tool_id})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:12px;font-weight:600;">Remove</button>
+      </div>
+    `).join('');
+  }
+
+  async function viewTool(id) {
+    const t = tools.find(x => x.tool_id === id);
+    if (!t) return;
+    viewToolId = id;
+
+    document.getElementById('viewToolTitle').textContent = t.name;
+    document.getElementById('viewToolInfo').textContent = `Total stock: ${t.quantity} unit`;
+
+    document.getElementById('assignEventSelect').value = '';
+    document.getElementById('assignEventQty').value = '';
+
+    document.getElementById('viewOverlay').classList.add('open');
+
+    await loadEventsForDropdown();
+    await loadAssignedEvents(id);
+  }
+
+  function closeViewModal() { document.getElementById('viewOverlay').classList.remove('open'); }
+  document.getElementById('viewClose').addEventListener('click', closeViewModal);
+  document.getElementById('viewCloseFoot').addEventListener('click', closeViewModal);
+  document.getElementById('viewOverlay').addEventListener('click', e => { if (e.target === e.currentTarget) closeViewModal(); });
+
+  document.getElementById('btnAssignEvent').addEventListener('click', async () => {
+    const eventId = document.getElementById('assignEventSelect').value;
+    const qty = parseInt(document.getElementById('assignEventQty').value);
+
+    if (!eventId || isNaN(qty) || qty < 1) {
+      alert('Please select an event and enter a valid quantity.');
+      return;
+    }
+
+    const { error } = await sb.from('event_tools').insert([{
+      event_id: parseInt(eventId),
+      tool_id: viewToolId,
+      quantity_used: qty
+    }]);
+
+    if (error) {
+      showToast('Failed to assign: ' + error.message);
+      return;
+    }
+
+    document.getElementById('assignEventSelect').value = '';
+    document.getElementById('assignEventQty').value = '';
+    showToast('Tool assigned to event!');
+    await loadAssignedEvents(viewToolId);
+  });
+
+  async function removeAssignedEvent(eventToolId) {
+    const { error } = await sb.from('event_tools').delete().eq('event_tool_id', eventToolId);
+    if (error) {
+      showToast('Failed to remove: ' + error.message);
+      return;
+    }
+    showToast('Removed from event.');
+    await loadAssignedEvents(viewToolId);
+  }
+
   document.getElementById('modalOverlay').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal(); });
   document.getElementById('delOverlay').addEventListener('click',   e => { if (e.target === e.currentTarget) closeDelModal(); });
-
-  // Dedahkan function yang dipanggil oleh onclick dalam HTML
-  window.openEdit = openEdit;
-  window.openDelete = openDelete;
 
   // ── Init ──
   checkSession();
   loadTools();
-})();
 </script>
 </body>
 </html>

@@ -365,12 +365,12 @@
 <script>
   const SUPABASE_URL = "https://dlhqubrluorfszaqqugh.supabase.co";
   const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRsaHF1YnJsdW9yZnN6YXFxdWdoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2Nzg1ODksImV4cCI6MjA5NzI1NDU4OX0.zMLZyMwh7sZOJQIHWOC217yitvFDdd2_Fqegpm-l2Nw";
-  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 </script>
 <script>
   // ── Auth guard: kick back to login if no admin logged in ──
   async function checkSession() {
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { session } } = await sb.auth.getSession();
     const admin = sessionStorage.getItem('admin');
     if (!session || !admin) {
       window.location.href = 'login.html';
@@ -378,10 +378,10 @@
   }
 
   // ── Logout ──
-  document.getElementById('btnLogout').addEventListener('click', async () => {
-    await supabase.auth.signOut();
+  document.getElementById('btnLogout').addEventListener('click', () => {
     sessionStorage.removeItem('admin');
     window.location.href = 'login.html';
+    sb.auth.signOut();
   });
 
   let currentAdmin = JSON.parse(sessionStorage.getItem('admin') || 'null');
@@ -391,7 +391,7 @@
   async function loadAdmin() {
     if (!currentAdmin) return;
 
-    const { data, error } = await supabase
+    const { data, error } = await sb
       .from('admin')
       .select('*')
       .eq('admin_id', currentAdmin.admin_id)
@@ -503,7 +503,7 @@
 
     // If changing password, re-verify current password first
     if (wantsPwChange) {
-      const { error: verifyError } = await supabase.auth.signInWithPassword({
+      const { error: verifyError } = await sb.auth.signInWithPassword({
         email: originalEmail,
         password: currentPw
       });
@@ -517,7 +517,7 @@
         return;
       }
 
-      const { error: pwUpdateError } = await supabase.auth.updateUser({ password: newPw });
+      const { error: pwUpdateError } = await sb.auth.updateUser({ password: newPw, current_password: currentPw });
       if (pwUpdateError) {
         document.getElementById('alertErrorMsg').textContent = 'Failed to update password: ' + pwUpdateError.message;
         document.getElementById('alertError').classList.add('show');
@@ -528,7 +528,7 @@
 
     // Update username / email in admins table
     const username = document.getElementById('fUsername').value.trim();
-    const { data: updatedAdmin, error: updateError } = await supabase
+    const { data: updatedAdmin, error: updateError } = await sb
       .from('admin')
       .update({ username, email })
       .eq('admin_id', currentAdmin.admin_id)
@@ -545,7 +545,7 @@
 
     // If email changed, also update Supabase Auth email (may require confirmation depending on project settings)
     if (email !== originalEmail) {
-      await supabase.auth.updateUser({ email });
+      await sb.auth.updateUser({ email });
     }
 
     currentAdmin = updatedAdmin;
